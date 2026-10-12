@@ -1,0 +1,14 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.kotlin/
+
+# Tajné – nikdy necommitovať
+app/google-services.json
+keystore.properties
+*.jks
+upload-keystore*
