@@ -22,8 +22,11 @@
 
 ## Zostavenie aplikácie
 - Zverejňovaná verzia je ostrá (release): nie je ladiaca, kód je zmenšený a zatemnený (R8), ladiace logy sú odstránené.
-- Podpisový kľúč (RSA 4096) je v repozitári iba zašifrovaný (AES-256, PBKDF2 600 000 iterácií).
-  Heslo je výhradne v GitHub secret `SIGNING_PASSWORD` a v bezpečnej úschove vlastníka.
+- Testovacie verzie (inštalované mimo Google Play) sú podpísané testovacím kľúčom z repozitára.
+  Riziko: niekto by mohol podvrhnúť aktualizáciu – iba ak by ste APK inštalovali z iného zdroja
+  než z odkazu na GitHub releases. Na Google Play sa tento kľúč nepoužije.
+- Pre Google Play je pripravený vlastný kľúč (RSA 4096), v repozitári iba zašifrovaný (AES-256,
+  PBKDF2 600 000 iterácií). Použije sa po nastavení GitHub secret `SIGNING_PASSWORD`.
 - Súbor `app/google-services.json` nie je tajný – je súčasťou každej nainštalovanej aplikácie.
   Ochranu dát zabezpečujú pravidlá databázy.
 

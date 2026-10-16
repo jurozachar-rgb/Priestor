@@ -3,7 +3,8 @@ name: Build
 # Zostaví aplikáciu pri každom nahratí kódu a zverejní APK ako GitHub release.
 #
 # GitHub secrets (Settings → Secrets and variables → Actions):
-#  SIGNING_PASSWORD      – heslo k podpisovému kľúču (bez neho vznikne len testovacia debug verzia)
+#  SIGNING_PASSWORD      – nepovinné; heslo k vlastnému kľúču (potrebné až pre Google Play).
+#                          Bez neho sa ostrá verzia podpíše testovacím kľúčom z repozitára.
 #  GOOGLE_SERVICES_JSON  – nepovinné, inak sa použije app/google-services.json
 
 on:
@@ -52,7 +53,7 @@ jobs:
               -in ci/upload-keystore.jks.enc -out "$RUNNER_TEMP/upload.jks" -pass env:SIGNING_PASSWORD
             echo "path=$RUNNER_TEMP/upload.jks" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Chýba secret SIGNING_PASSWORD – zostavujem iba testovaciu (debug) verziu."
+            echo "Secret SIGNING_PASSWORD nie je nastavený – ostrá verzia sa podpíše testovacím kľúčom."
           fi
 
       # Ostrá verzia: nie je ladiaca (debuggable), kód je zmenšený a zatemnený (R8), podpísaná vlastným kľúčom.
@@ -69,14 +70,13 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk Priestor.apk
           rm -f "$RUNNER_TEMP/upload.jks"
 
-      - name: Zostaviť testovaciu verziu (bez podpisového kľúča)
+      - name: Zostaviť ostrú verziu (testovací podpis)
         if: steps.keystore.outputs.path == ''
         env:
           VERSION_CODE: ${{ github.run_number }}
         run: |
-          # assembleRelease len overí, že ostrá verzia (R8) sa dá zostaviť
-          ./gradlew --no-daemon assembleDebug assembleRelease
-          cp app/build/outputs/apk/debug/app-debug.apk Priestor.apk
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk Priestor.apk
 
       - uses: actions/upload-artifact@v4
         if: steps.keystore.outputs.path != ''

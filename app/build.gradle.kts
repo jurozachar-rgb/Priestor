@@ -52,8 +52,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Vlastný (tajný) kľúč, ak je k dispozícii heslo; inak testovací kľúč z repozitára.
+            // Verzia je v oboch prípadoch ostrá – nie je ladiaca a kód je zatemnený.
             val release = signingConfigs.getByName("release")
-            if (release.storeFile != null) signingConfig = release
+            signingConfig = if (release.storeFile != null) release else signingConfigs.getByName("debug")
         }
     }
 

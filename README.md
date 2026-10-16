@@ -34,8 +34,8 @@ Pripomienky: termín s časom → hodinu vopred a v čase termínu; termín bez 
 3. **Firestore → Rules** → vložiť obsah `firebase/firestore.rules` → **Publish**.
 4. **Authentication → Get started → Google** → zapnúť, uložiť.
 5. **Project settings → Add app → Android**: package name `sk.kvz.priestor`,
-   SHA-1 podpisového kľúča: `A2:80:58:94:37:C3:DC:3C:06:62:51:66:76:7E:62:EB:17:93:DF:A5`
-6. `google-services.json` je v `app/`. GitHub secret `SIGNING_PASSWORD` = heslo k podpisovému kľúču.
+   SHA-1 testovacieho kľúča: `1B:A3:47:90:17:4A:05:B2:3C:73:29:EC:90:72:0F:42:44:B0:42:C4`
+6. `google-services.json` je v `app/`.
 7. Po každom nahratí kódu sa APK zverejní na
    https://github.com/jurozachar-rgb/Priestor/releases/latest/download/Priestor.apk
 
@@ -43,7 +43,9 @@ Zabezpečenie je popísané v [SECURITY.md](SECURITY.md).
 
 ## Pred zverejnením na Google Play
 
-- Balík `.aab` pre Google Play je v artefakte `priestor-play-aab` každého zostavenia.
+- Nastaviť GitHub secret `SIGNING_PASSWORD` (heslo k vlastnému kľúču) – potom vznikne aj balík `.aab`
+  (artefakt `priestor-play-aab`). Do Firebase pridať SHA-1 vlastného kľúča
+  `A2:80:58:94:37:C3:DC:3C:06:62:51:66:76:7E:62:EB:17:93:DF:A5`.
 - Do Firebase pridať SHA-1 kľúča Play App Signing (Play Console → Test and release → App integrity).
 - Zapnúť Firebase App Check (Play Integrity) – viď SECURITY.md.
 - Doplniť údaje firmy a kontakt v `docs/privacy/index.html` a SHA-256 Play kľúča v `docs/.well-known/assetlinks.json`.
