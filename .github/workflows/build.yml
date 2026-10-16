@@ -15,6 +15,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,11 +38,11 @@ jobs:
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "::warning::Chýba secret GOOGLE_SERVICES_JSON – zostavujem s náhradnou konfiguráciou, prihlásenie nebude fungovať."
-            cp ci/google-services.placeholder.json app/google-services.json
-          else
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          elif [ ! -f app/google-services.json ]; then
+            echo "::warning::Chýba google-services.json – zostavujem s náhradnou konfiguráciou, prihlásenie nebude fungovať."
+            cp ci/google-services.placeholder.json app/google-services.json
           fi
 
       - name: Podpisový kľúč pre Play
@@ -61,6 +64,17 @@ jobs:
         with:
           name: priestor-test-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      # Testovacie APK na stiahnutie priamo v telefóne:
+      # https://github.com/jurozachar-rgb/Priestor/releases/latest/download/Priestor.apk
+      - name: Zverejniť testovacie APK
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk Priestor.apk
+          gh release create "test-${{ github.run_number }}" Priestor.apk \
+            --title "Testovacia verzia ${{ github.run_number }}" \
+            --notes "Na inštaláciu do telefónu stiahnite Priestor.apk." --latest
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Balík pre Google Play (.aab)
         if: steps.keystore.outputs.path != ''
