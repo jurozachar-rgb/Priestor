@@ -106,7 +106,7 @@ fun MembersScreen(spaceId: String, onBack: () -> Unit) {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Pošlite tento kód alebo odkaz. Platí 7 dní a môže ho použiť ktokoľvek, kto ho dostane.")
-                        Text(code, fontSize = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
+                        Text(code, fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     }
                 },
                 confirmButton = {

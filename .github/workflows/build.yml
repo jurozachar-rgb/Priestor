@@ -1,14 +1,10 @@
 name: Build
 
-# Zostaví aplikáciu pri každom nahratí kódu.
-#  - testovacie APK (na priamu inštaláciu do telefónu) – vždy
-#  - podpísaný balík .aab pre Google Play – keď sú nastavené podpisové secrets
+# Zostaví aplikáciu pri každom nahratí kódu a zverejní APK ako GitHub release.
 #
-# Potrebné GitHub secrets (Settings → Secrets and variables → Actions):
-#  GOOGLE_SERVICES_JSON     – celý obsah súboru google-services.json z Firebase
-#  UPLOAD_KEYSTORE_BASE64   – (neskôr) podpisový kľúč pre Play, v base64
-#  UPLOAD_KEYSTORE_PASSWORD – (neskôr) heslo ku kľúču
-#  UPLOAD_KEY_ALIAS         – (neskôr) alias kľúča
+# GitHub secrets (Settings → Secrets and variables → Actions):
+#  SIGNING_PASSWORD      – heslo k podpisovému kľúču (bez neho vznikne len testovacia debug verzia)
+#  GOOGLE_SERVICES_JSON  – nepovinné, inak sa použije app/google-services.json
 
 on:
   push:
@@ -45,49 +41,55 @@ jobs:
             cp ci/google-services.placeholder.json app/google-services.json
           fi
 
-      - name: Podpisový kľúč pre Play
+      # Podpisový kľúč je v repozitári zašifrovaný (AES-256). Heslo je iba v GitHub secret SIGNING_PASSWORD.
+      - name: Podpisový kľúč
         id: keystore
         env:
-          KS: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: |
-          if [ -n "$KS" ]; then
-            echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          if [ -n "$SIGNING_PASSWORD" ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+              -in ci/upload-keystore.jks.enc -out "$RUNNER_TEMP/upload.jks" -pass env:SIGNING_PASSWORD
             echo "path=$RUNNER_TEMP/upload.jks" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Chýba secret SIGNING_PASSWORD – zostavujem iba testovaciu (debug) verziu."
           fi
 
-      - name: Testovacie APK
-        env:
-          VERSION_CODE: ${{ github.run_number }}
-        run: ./gradlew --no-daemon assembleDebug
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: priestor-test-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-
-      # Testovacie APK na stiahnutie priamo v telefóne:
-      # https://github.com/jurozachar-rgb/Priestor/releases/latest/download/Priestor.apk
-      - name: Zverejniť testovacie APK
-        run: |
-          cp app/build/outputs/apk/debug/app-debug.apk Priestor.apk
-          gh release create "test-${{ github.run_number }}" Priestor.apk \
-            --title "Testovacia verzia ${{ github.run_number }}" \
-            --notes "Na inštaláciu do telefónu stiahnite Priestor.apk." --latest
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Balík pre Google Play (.aab)
+      # Ostrá verzia: nie je ladiaca (debuggable), kód je zmenšený a zatemnený (R8), podpísaná vlastným kľúčom.
+      - name: Zostaviť ostrú verziu (APK + AAB pre Google Play)
         if: steps.keystore.outputs.path != ''
         env:
           VERSION_CODE: ${{ github.run_number }}
           SIGNING_STORE_FILE: ${{ steps.keystore.outputs.path }}
-          SIGNING_STORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
-        run: ./gradlew --no-daemon bundleRelease
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_ALIAS: priestor
+        run: |
+          ./gradlew --no-daemon assembleRelease bundleRelease
+          cp app/build/outputs/apk/release/app-release.apk Priestor.apk
+          rm -f "$RUNNER_TEMP/upload.jks"
+
+      - name: Zostaviť testovaciu verziu (bez podpisového kľúča)
+        if: steps.keystore.outputs.path == ''
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          # assembleRelease len overí, že ostrá verzia (R8) sa dá zostaviť
+          ./gradlew --no-daemon assembleDebug assembleRelease
+          cp app/build/outputs/apk/debug/app-debug.apk Priestor.apk
 
       - uses: actions/upload-artifact@v4
         if: steps.keystore.outputs.path != ''
         with:
           name: priestor-play-aab
           path: app/build/outputs/bundle/release/app-release.aab
+
+      # APK na stiahnutie priamo v telefóne:
+      # https://github.com/jurozachar-rgb/Priestor/releases/latest/download/Priestor.apk
+      - name: Zverejniť APK
+        run: |
+          gh release create "v${{ github.run_number }}" Priestor.apk \
+            --title "Priestor – verzia ${{ github.run_number }}" \
+            --notes "Na inštaláciu do telefónu stiahnite Priestor.apk." --latest
+        env:
+          GH_TOKEN: ${{ github.token }}

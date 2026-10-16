@@ -237,14 +237,27 @@ object Repo {
         }
         invites.whereEqualTo("createdBy", uid).get().await()
             .documents.forEach { it.reference.delete().await() }
+        clearLocalCache()
         user?.delete()?.await()
+    }
+
+    /**
+     * Po odhlásení zmaže lokálnu kópiu databázy v telefóne,
+     * aby po odhlásení nezostali v zariadení žiadne úlohy.
+     */
+    suspend fun clearLocalCache() {
+        runCatching {
+            val local = Firebase.firestore
+            local.terminate().await()
+            local.clearPersistence().await()
+        }.onFailure { Log.w(TAG, "clearLocalCache", it) }
     }
 
     // ---------- Pomocné ----------
 
     fun newId(): String = UUID.randomUUID().toString().take(8)
 
-    const val INVITE_LEN = 6
+    const val INVITE_LEN = 8
     private const val INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     private val random = SecureRandom()
     private fun newInviteCode() = (1..INVITE_LEN).map { INVITE_ALPHABET[random.nextInt(INVITE_ALPHABET.length)] }

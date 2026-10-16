@@ -11,3 +11,7 @@ captures/
 keystore.properties
 *.jks
 upload-keystore*
+
+node_modules/
+firebase-debug.log
+firestore-debug.log

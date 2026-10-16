@@ -158,8 +158,16 @@ class ReminderReceiver : BroadcastReceiver() {
         val contentPi = PendingIntent.getActivity(
             context, key.hashCode(), open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        // Na zamknutej obrazovke sa nezobrazí názov úlohy, len všeobecný text.
+        val publicVersion = NotificationCompat.Builder(context, Reminders.CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Priestor")
+            .setContentText("Blíži sa termín úlohy")
+            .build()
         val n = NotificationCompat.Builder(context, Reminders.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicVersion)
             .setContentTitle(title)
             .setContentText(intent.getStringExtra("text"))
             .setContentIntent(contentPi)

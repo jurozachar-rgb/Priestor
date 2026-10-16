@@ -1,7 +1,12 @@
 rules_version = '2';
 
-// Pravidlá pre databázu Priestor.
-// Princíp: oblasť (space) aj jej úlohy vidí a mení iba člen tej oblasti.
+// Pravidlá pre databázu Priestor – verzia 2 (sprísnená).
+// Princípy:
+//  - oblasť (space) aj jej úlohy vidí a mení iba člen tej oblasti,
+//  - každý zápis má presne určené polia, typy a maximálne dĺžky,
+//  - autor úlohy sa nedá sfalšovať ani neskôr zmeniť,
+//  - člen môže meniť iba svoje meno, vlastník iba odoberať členov,
+//  - pozvánka platí najviac 7 dní a kód má 8 znakov.
 // Vložte do Firebase konzoly: Firestore Database → Rules → Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -10,7 +15,10 @@ service cloud.firestore {
     function me() { return request.auth.uid; }
     function spaceDoc(spaceId) { return get(/databases/$(database)/documents/spaces/$(spaceId)); }
 
-    function validName(n) { return n is string && n.size() > 0 && n.size() <= 100; }
+    function str(v, max) { return v is string && v.size() <= max; }
+    function text(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    function optStr(v, max) { return v == null || str(v, max); }
+    function optTime(v) { return v == null || v is timestamp; }
 
     // Platná pozvánka do danej oblasti?
     function inviteOk(spaceId, code) {
@@ -22,62 +30,115 @@ service cloud.firestore {
       function isMember() { return signedIn() && me() in resource.data.members; }
       function isOwner() { return signedIn() && resource.data.ownerId == me(); }
       function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
-      // memberNames smie člen meniť len pri sebe
-      function onlyOwnName() {
-        return !('memberNames' in changed())
-          || request.resource.data.memberNames.diff(resource.data.memberNames).affectedKeys().hasOnly([me()]);
+      function namesDiff() { return request.resource.data.memberNames.diff(resource.data.memberNames); }
+
+      function validSpace(d) {
+        return d.keys().hasOnly(['name', 'ownerId', 'members', 'memberNames', 'sections', 'color', 'createdAt', 'lastJoinCode'])
+          && text(d.name, 100)
+          && d.ownerId is string
+          && d.members is list && d.members.size() >= 1 && d.members.size() <= 50
+          && d.memberNames is map && d.memberNames.keys().hasOnly(d.members)
+          && d.sections is list && d.sections.size() <= 30
+          && d.color is int && d.color >= 0 && d.color < 32;
+      }
+      // moje meno (ak je uvedené) je krátky text
+      function myNameOk() {
+        return !(me() in request.resource.data.memberNames) || text(request.resource.data.memberNames[me()], 100);
       }
 
       allow read: if isMember();
 
       allow create: if signedIn()
+        && validSpace(request.resource.data)
         && request.resource.data.ownerId == me()
         && request.resource.data.members == [me()]
-        && validName(request.resource.data.name);
+        && request.resource.data.createdAt == request.time
+        && !('lastJoinCode' in request.resource.data)
+        && myNameOk();
 
-      allow update: if
-        // člen: názov, sekcie, farba, vlastné meno
-        (isMember()
-          && changed().hasOnly(['name', 'sections', 'color', 'memberNames', 'lastJoinCode'])
-          && onlyOwnName()
-          && validName(request.resource.data.name))
-        // vlastník: navyše môže odoberať členov (seba nie)
-        || (isOwner()
-          && changed().hasOnly(['name', 'sections', 'color', 'members', 'memberNames'])
-          && me() in request.resource.data.members
-          && resource.data.members.hasAll(request.resource.data.members)
-          && validName(request.resource.data.name))
-        // člen (nie vlastník) odchádza
-        || (isMember() && !isOwner()
-          && changed().hasOnly(['members', 'memberNames'])
-          && request.resource.data.members == resource.data.members.removeAll([me()]))
-        // nový člen sa pripája cez platnú pozvánku
-        || (signedIn() && !(me() in resource.data.members)
-          && changed().hasOnly(['members', 'memberNames', 'lastJoinCode'])
-          && request.resource.data.members == resource.data.members.concat([me()])
-          && onlyOwnName()
-          && inviteOk(spaceId, request.resource.data.lastJoinCode));
+      allow update: if validSpace(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && myNameOk()
+        && (
+          // člen: názov, sekcie, farba, vlastné meno
+          (isMember()
+            && changed().hasOnly(['name', 'sections', 'color', 'memberNames'])
+            && namesDiff().affectedKeys().hasOnly([me()]))
+          // vlastník: navyše môže odoberať iných členov (seba nie)
+          || (isOwner()
+            && changed().hasOnly(['name', 'sections', 'color', 'members', 'memberNames'])
+            && me() in request.resource.data.members
+            && resource.data.members.hasAll(request.resource.data.members)
+            && namesDiff().addedKeys().union(namesDiff().changedKeys()).hasOnly([me()]))
+          // člen (nie vlastník) odchádza
+          || (isMember() && !isOwner()
+            && changed().hasOnly(['members', 'memberNames'])
+            && request.resource.data.members == resource.data.members.removeAll([me()])
+            && namesDiff().affectedKeys().hasOnly([me()]))
+          // nový člen sa pripája cez platnú pozvánku
+          || (signedIn() && !(me() in resource.data.members)
+            && changed().hasOnly(['members', 'memberNames', 'lastJoinCode'])
+            && request.resource.data.members == resource.data.members.concat([me()])
+            && namesDiff().affectedKeys().hasOnly([me()])
+            && request.resource.data.lastJoinCode is string
+            && inviteOk(spaceId, request.resource.data.lastJoinCode))
+        );
 
       allow delete: if isOwner();
 
       match /tasks/{taskId} {
         function spaceMember() { return signedIn() && me() in spaceDoc(spaceId).data.members; }
+        function taskChanged() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+        function validTask(d) {
+          return d.keys().hasOnly(['title', 'note', 'sectionId', 'dueAt', 'hasTime', 'done', 'doneAt',
+                                   'doneByName', 'createdBy', 'createdByName', 'createdAt'])
+            && text(d.title, 500)
+            && str(d.note, 5000)
+            && optStr(d.sectionId, 64)
+            && optTime(d.dueAt)
+            && d.hasTime is bool
+            && d.done is bool
+            && optTime(d.doneAt)
+            && optStr(d.doneByName, 100)
+            && d.createdBy is string
+            && str(d.createdByName, 100);
+        }
+
         allow read, delete: if spaceMember();
-        allow create, update: if spaceMember()
-          && request.resource.data.title is string
-          && request.resource.data.title.size() > 0
-          && request.resource.data.title.size() <= 500;
+
+        allow create: if spaceMember()
+          && validTask(request.resource.data)
+          && request.resource.data.createdBy == me()
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.done == false;
+
+        allow update: if spaceMember()
+          && validTask(request.resource.data)
+          && !taskChanged().hasAny(['createdBy', 'createdByName', 'createdAt']);
       }
     }
 
     match /invites/{code} {
-      // kód je tajomstvo – kto ho pozná, môže si pozvánku prečítať; zoznam len vlastné
+      // kód je tajomstvo (8 znakov, ~10^12 možností) – kto ho pozná, môže si pozvánku prečítať
       allow get: if signedIn();
       allow list: if signedIn() && resource.data.createdBy == me();
       allow create: if signedIn()
+        && code.size() == 8
+        && request.resource.data.keys().hasOnly(['spaceId', 'spaceName', 'createdBy', 'createdAt', 'expiresAt'])
         && request.resource.data.createdBy == me()
+        && request.resource.data.spaceId is string
+        && str(request.resource.data.spaceName, 100)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt <= request.time + duration.value(8, 'd')  // 7 dní + rezerva na nepresné hodiny v telefóne
         && me() in spaceDoc(request.resource.data.spaceId).data.members;
       allow delete: if signedIn() && resource.data.createdBy == me();
+    }
+
+    // Všetko ostatné je zakázané.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

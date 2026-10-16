@@ -49,7 +49,10 @@ object GoogleAuth {
     }
 
     suspend fun signOut(activity: Activity) {
-        Firebase.auth.signOut()
+        // Najprv zmažeme lokálnu kópiu dát (na obrazovke nastavení nie sú aktívne žiadne odbery),
+        // až potom odhlásime – po odhlásení sa obrazovka zavrie a táto korutina by sa zrušila.
+        sk.kvz.priestor.data.Repo.clearLocalCache()
         runCatching { CredentialManager.create(activity).clearCredentialState(ClearCredentialStateRequest()) }
+        Firebase.auth.signOut()
     }
 }
