@@ -100,7 +100,7 @@ fun MembersScreen(spaceId: String, onBack: () -> Unit) {
         }
 
         inviteCode?.let { code ->
-            val link = "https://priestor.kvz.sk/join/$code"
+            val link = "https://priestor.jurajzachar.sk/join/$code"
             AlertDialog(
                 onDismissRequest = { inviteCode = null },
                 title = { Text("Pozvánka do „${s.name}“") },

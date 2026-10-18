@@ -1,6 +1,6 @@
 # Priestor
 
-Jednoduchý zdieľaný to-do list pre Android. Oblasti (Domov, Nákup, Chata, Dovolenka…) s vlastnými sekciami,
+Jednoduchý zdieľaný to-do list pre Android a web (https://priestor.jurajzachar.sk). Oblasti (Domov, Nákup, Chata, Dovolenka…) s vlastnými sekciami,
 úlohy s nepovinným termínom a pripomienkami, archív urobených úloh. Každú oblasť vidia iba ľudia, ktorých do nej pozvete.
 
 **Kalendár činností** – zapisujete si, kedy ste čo robili (kosenie, polievanie, výmena oleja…). Mesačný kalendár
@@ -8,7 +8,8 @@ s farebnými bodkami a pod ním súhrn vybranej činnosti: všetky termíny pod 
 Každú činnosť možno zdieľať pozvánkou rovnako ako oblasť.
 
 **Technológie:** Kotlin, Jetpack Compose (Material 3), Firebase Auth (prihlásenie Google) a Cloud Firestore.
-Web `priestor.kvz.sk` (zásady súkromia, pozvánky) je v priečinku `docs/`.
+Webová aplikácia (React + Firebase, rovnaké dáta a funkcie ako v Androide) je v priečinku `web/`,
+statické stránky (zásady súkromia, assetlinks) v `docs/`. Obe sa zverejňujú spolu na https://priestor.jurajzachar.sk.
 
 ## Ako to funguje
 
@@ -20,6 +21,8 @@ Web `priestor.kvz.sk` (zásady súkromia, pozvánky) je v priečinku `docs/`.
 | Obrazovky | `ui/` |
 | Bezpečnostné pravidlá databázy | `firebase/firestore.rules` |
 | Zostavenie (GitHub Actions) | `.github/workflows/build.yml` |
+| Webová aplikácia | `web/src/` (dáta: `web/src/repo.ts`, konfigurácia Firebase: `web/src/config.ts`) |
+| Zverejnenie webu (GitHub Pages) | `.github/workflows/web.yml` |
 
 Štruktúra databázy:
 
@@ -55,5 +58,15 @@ Zabezpečenie je popísané v [SECURITY.md](SECURITY.md).
 - Do Firebase pridať SHA-1 kľúča Play App Signing (Play Console → Test and release → App integrity).
 - Zapnúť Firebase App Check (Play Integrity) – viď SECURITY.md.
 - Doplniť údaje firmy a kontakt v `docs/privacy/index.html` a SHA-256 Play kľúča v `docs/.well-known/assetlinks.json`.
-- Zapnúť GitHub Pages (Settings → Pages → branch `main`, priečinok `/docs`) a v DNS domény kvz.sk nastaviť
-  CNAME `priestor` → `jurozachar-rgb.github.io`.
+
+## Nastavenie webu (raz)
+
+1. **Firebase → Project settings → Your apps → Add app → Web (</>)**, názov „Priestor web“ (Hosting netreba).
+   Hodnoty `apiKey` a `appId` z konfigurácie vložiť do `web/src/config.ts`.
+2. **Firebase → Authentication → Settings → Authorized domains → Add domain:** `priestor.jurajzachar.sk`.
+3. **WebHouse → DNS domény jurajzachar.sk:** záznam `CNAME`, názov `priestor`, hodnota `jurozachar-rgb.github.io.`
+4. **GitHub → Settings → Pages:** Source „GitHub Actions“, Custom domain `priestor.jurajzachar.sk`, zapnúť Enforce HTTPS.
+5. Po každom nahratí zmien vo `web/` alebo `docs/` sa web zverejní sám (workflow „Web“).
+
+Lokálne spustenie: `cd web && npm install && npm run dev`.
+Pripomienky termínov fungujú iba v Android aplikácii; web úlohy po termíne vyznačí červenou.

@@ -10,9 +10,11 @@ import sk.kvz.priestor.reminders.Reminders
 import sk.kvz.priestor.ui.PriestorRoot
 import sk.kvz.priestor.ui.theme.PriestorTheme
 
+private val INVITE_HOSTS = setOf("priestor.jurajzachar.sk", "priestor.kvz.sk")
+
 class MainActivity : ComponentActivity() {
 
-    /** Kód pozvánky z odkazu https://priestor.kvz.sk/join/KOD */
+    /** Kód pozvánky z odkazu https://priestor.jurajzachar.sk/join/KOD (alebo staršieho priestor.kvz.sk) */
     private val pendingJoinCode = mutableStateOf<String?>(null)
     /** Oblasť, ktorú treba otvoriť (z notifikácie). */
     private val pendingSpaceId = mutableStateOf<String?>(null)
@@ -46,7 +48,7 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         intent ?: return
         intent.data?.let { uri ->
-            if (uri.host == "priestor.kvz.sk" && uri.pathSegments.firstOrNull() == "join") {
+            if (uri.host in INVITE_HOSTS && uri.pathSegments.firstOrNull() == "join") {
                 pendingJoinCode.value = uri.pathSegments.getOrNull(1) ?: uri.getQueryParameter("code")
             }
         }

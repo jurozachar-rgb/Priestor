@@ -38,7 +38,7 @@ import sk.kvz.priestor.auth.GoogleAuth
 import sk.kvz.priestor.data.Repo
 import sk.kvz.priestor.reminders.Reminders
 
-const val PRIVACY_URL = "https://priestor.kvz.sk/privacy"
+const val PRIVACY_URL = "https://priestor.jurajzachar.sk/privacy/"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

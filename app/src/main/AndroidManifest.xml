@@ -26,15 +26,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Pozvánky: https://priestor.kvz.sk/join/KOD -->
+            <!-- Pozvánky: https://priestor.jurajzachar.sk/join/KOD (aj staršie priestor.kvz.sk) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="priestor.kvz.sk"
-                    android:pathPrefix="/join" />
+                <data android:scheme="https" />
+                <data android:host="priestor.jurajzachar.sk" />
+                <data android:host="priestor.kvz.sk" />
+                <data android:pathPrefix="/join" />
             </intent-filter>
         </activity>
 

@@ -1,0 +1,56 @@
+name: Web
+
+# Zostaví webovú aplikáciu (priečinok web/) a zverejní ju na GitHub Pages:
+# https://priestor.jurajzachar.sk
+# Spolu s ňou sa zverejnia statické stránky z docs/ (zásady súkromia, assetlinks pre Android).
+#
+# Jednorazové nastavenie: Settings → Pages → Source: „GitHub Actions“,
+# Custom domain: priestor.jurajzachar.sk, Enforce HTTPS.
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', 'docs/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Inštalácia
+        working-directory: web
+        run: npm install --no-audit --no-fund
+      - name: Kontrola typov a zostavenie
+        working-directory: web
+        run: npm run build
+      - name: Poskladať stránku
+        run: |
+          cp -r docs/privacy docs/.well-known docs/style.css docs/CNAME web/dist/
+          # neznáme adresy (napr. /join/KOD, /s/ID) otvorí aplikácia
+          cp web/dist/index.html web/dist/404.html
+          ls -la web/dist
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
