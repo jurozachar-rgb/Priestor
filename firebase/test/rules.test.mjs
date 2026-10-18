@@ -218,3 +218,52 @@ test('odobratý člen stratí prístup', async () => {
   await assertFails(getDocs(collection(db('bob'), 'spaces/nakup/tasks')));
   await assertFails(setDoc(doc(db('bob'), 'spaces/nakup/tasks/t11'), newTask('bob')));
 });
+
+// ---------- Kalendár činností ----------
+
+const seedLog = async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const f = ctx.firestore();
+    await setDoc(doc(f, 'spaces/kosenie'), {
+      name: 'Kosenie', ownerId: 'alice', members: ['alice', 'bob'], memberNames: { alice: 'Alica', bob: 'Bob' },
+      sections: [], color: 0, createdAt: Timestamp.now(), kind: 'log',
+    });
+    await setDoc(doc(f, 'spaces/kosenie/entries/e1'), {
+      date: '2026-11-01', note: '', createdBy: 'alice', createdByName: 'Alica', createdAt: Timestamp.now(),
+    });
+  });
+};
+const newEntry = (uid, extra = {}) => ({
+  date: '2026-12-20', note: 'aj za plotom', createdBy: uid, createdByName: uid, createdAt: serverTimestamp(), ...extra,
+});
+
+test('činnosť: vytvorenie s kind log, iný kind nie, kind sa nedá zmeniť', async () => {
+  await assertSucceeds(setDoc(doc(db('carol'), 'spaces/l1'), newSpace('carol', { sections: [], kind: 'log' })));
+  await assertFails(setDoc(doc(db('carol'), 'spaces/l2'), newSpace('carol', { kind: 'admin' })));
+  await assertFails(updateDoc(doc(db('carol'), 'spaces/l1'), { kind: deleteField() }));
+  await assertFails(updateDoc(doc(db('alice'), 'spaces/nakup'), { kind: 'log' }));
+});
+
+test('člen činnosti číta, zapisuje, upravuje a maže záznamy, cudzí nie', async () => {
+  await seedLog();
+  await assertSucceeds(getDocs(collection(db('bob'), 'spaces/kosenie/entries')));
+  await assertSucceeds(setDoc(doc(db('bob'), 'spaces/kosenie/entries/e2'), newEntry('bob')));
+  await assertSucceeds(updateDoc(doc(db('bob'), 'spaces/kosenie/entries/e1'), { date: '2026-11-02', note: 'x' }));
+  await assertSucceeds(deleteDoc(doc(db('bob'), 'spaces/kosenie/entries/e1')));
+  await assertFails(getDocs(collection(db('carol'), 'spaces/kosenie/entries')));
+  await assertFails(setDoc(doc(db('carol'), 'spaces/kosenie/entries/e3'), newEntry('carol')));
+  await assertFails(deleteDoc(doc(db('carol'), 'spaces/kosenie/entries/e2')));
+});
+
+test('záznam: platné polia, autor sa nedá sfalšovať ani zmeniť', async () => {
+  await seedLog();
+  await assertFails(setDoc(doc(db('bob'), 'spaces/kosenie/entries/a'), newEntry('bob', { createdBy: 'alice' })));
+  await assertFails(setDoc(doc(db('bob'), 'spaces/kosenie/entries/b'), newEntry('bob', { date: '20.12.2026' })));
+  await assertFails(setDoc(doc(db('bob'), 'spaces/kosenie/entries/c'), newEntry('bob', { note: 'x'.repeat(1001) })));
+  await assertFails(setDoc(doc(db('bob'), 'spaces/kosenie/entries/d'), newEntry('bob', { extra: 1 })));
+  await assertFails(updateDoc(doc(db('bob'), 'spaces/kosenie/entries/e1'), { createdBy: 'bob' }));
+});
+
+test('záznamy sa nedajú zapísať do bežnej oblasti', async () => {
+  await assertFails(setDoc(doc(db('bob'), 'spaces/nakup/entries/e1'), newEntry('bob')));
+});

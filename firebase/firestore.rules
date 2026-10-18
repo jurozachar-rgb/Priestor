@@ -6,7 +6,8 @@ rules_version = '2';
 //  - každý zápis má presne určené polia, typy a maximálne dĺžky,
 //  - autor úlohy sa nedá sfalšovať ani neskôr zmeniť,
 //  - člen môže meniť iba svoje meno, vlastník iba odoberať členov,
-//  - pozvánka platí najviac 7 dní a kód má 8 znakov.
+//  - pozvánka platí najviac 7 dní a kód má 8 znakov,
+//  - činnosť v kalendári činností je oblasť s kind == 'log'; jej záznamy sú v podkolekcii entries.
 // Vložte do Firebase konzoly: Firestore Database → Rules → Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -33,7 +34,8 @@ service cloud.firestore {
       function namesDiff() { return request.resource.data.memberNames.diff(resource.data.memberNames); }
 
       function validSpace(d) {
-        return d.keys().hasOnly(['name', 'ownerId', 'members', 'memberNames', 'sections', 'color', 'createdAt', 'lastJoinCode'])
+        return d.keys().hasOnly(['name', 'ownerId', 'members', 'memberNames', 'sections', 'color', 'createdAt', 'lastJoinCode', 'kind'])
+          && (!('kind' in d) || d.kind == 'log')
           && text(d.name, 100)
           && d.ownerId is string
           && d.members is list && d.members.size() >= 1 && d.members.size() <= 50
@@ -116,6 +118,34 @@ service cloud.firestore {
         allow update: if spaceMember()
           && validTask(request.resource.data)
           && !taskChanged().hasAny(['createdBy', 'createdByName', 'createdAt']);
+      }
+
+      // Záznamy v kalendári činností (kedy sa činnosť robila). Iba v oblastiach typu 'log'.
+      match /entries/{entryId} {
+        function logMember() {
+          let s = spaceDoc(spaceId).data;
+          return signedIn() && me() in s.members && s.get('kind', '') == 'log';
+        }
+        function entryChanged() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+        function validEntry(d) {
+          return d.keys().hasOnly(['date', 'note', 'createdBy', 'createdByName', 'createdAt'])
+            && d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && str(d.note, 1000)
+            && d.createdBy is string
+            && str(d.createdByName, 100);
+        }
+
+        allow read, delete: if logMember();
+
+        allow create: if logMember()
+          && validEntry(request.resource.data)
+          && request.resource.data.createdBy == me()
+          && request.resource.data.createdAt == request.time;
+
+        allow update: if logMember()
+          && validEntry(request.resource.data)
+          && entryChanged().hasOnly(['date', 'note']);
       }
     }
 

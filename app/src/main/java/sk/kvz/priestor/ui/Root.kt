@@ -91,7 +91,7 @@ private fun SignedIn(
             onDismiss = { joinDialogCode = null },
             onJoined = { spaceId ->
                 joinDialogCode = null
-                nav.navigate("space/$spaceId") { launchSingleTop = true }
+                nav.navigate("open/$spaceId") { launchSingleTop = true }
             },
         )
     }
@@ -103,7 +103,31 @@ private fun SignedIn(
                 onOpen = { nav.navigate("space/$it") },
                 onJoin = { joinDialogCode = "" },
                 onSettings = { nav.navigate("settings") },
+                onLog = { nav.navigate("log") },
             )
+        }
+        composable(
+            "log?select={select}",
+            arguments = listOf(navArgument("select") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        ) { entry ->
+            ActivityLogScreen(
+                initialSelectedId = entry.arguments?.getString("select"),
+                onBack = { nav.popBackStack() },
+                onMembers = { nav.navigate("members/$it") },
+            )
+        }
+        // Po pripojení cez pozvánku: otvorí oblasť alebo činnosť podľa jej typu.
+        composable("open/{id}", arguments = spaceArg) { entry ->
+            val id = entry.arguments?.getString("id") ?: return@composable
+            val flow = remember(id) { Repo.spaceFlow(id) }
+            val space by flow.collectAsStateWithLifecycle(initialValue = null)
+            LaunchedEffect(space) {
+                val s = space ?: return@LaunchedEffect
+                nav.navigate(if (s.isLog) "log?select=${s.id}" else "space/${s.id}") {
+                    popUpTo("open/{id}") { inclusive = true }
+                }
+            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         }
         composable("space/{id}", arguments = spaceArg) { entry ->
             val id = entry.arguments?.getString("id") ?: return@composable

@@ -15,7 +15,10 @@ data class Space(
     val memberNames: Map<String, String>,
     val sections: List<Section>,
     val color: Int,
+    /** „log“ = činnosť v kalendári činností (Kosenie…), inak bežná oblasť s úlohami. */
+    val kind: String? = null,
 ) {
+    val isLog: Boolean get() = kind == KIND_LOG
     fun sectionName(sectionId: String?): String? = sections.firstOrNull { it.id == sectionId }?.name
 }
 
@@ -50,6 +53,29 @@ internal fun DocumentSnapshot.toSpace(): Space? {
         memberNames = (get("memberNames") as? Map<String, String>).orEmpty(),
         sections = sections,
         color = (getLong("color") ?: 0L).toInt(),
+        kind = getString("kind"),
+    )
+}
+
+const val KIND_LOG = "log"
+
+/** Jeden záznam v kalendári činností – kedy sa činnosť robila. */
+data class LogEntry(
+    val id: String,
+    val spaceId: String,
+    val date: java.time.LocalDate,
+    val note: String,
+    val createdByName: String?,
+)
+
+internal fun DocumentSnapshot.toLogEntry(spaceId: String): LogEntry? {
+    val date = getString("date")?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() } ?: return null
+    return LogEntry(
+        id = id,
+        spaceId = spaceId,
+        date = date,
+        note = getString("note") ?: "",
+        createdByName = getString("createdByName"),
     )
 }
 

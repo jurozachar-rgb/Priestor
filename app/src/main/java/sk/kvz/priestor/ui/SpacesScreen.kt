@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.GroupAdd
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Settings
@@ -53,7 +54,7 @@ import sk.kvz.priestor.data.Space
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpacesScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, onSettings: () -> Unit) {
+fun SpacesScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, onSettings: () -> Unit, onLog: () -> Unit) {
     val flow = remember { Repo.spacesFlow() }
     val spaces by flow.collectAsStateWithLifecycle(initialValue = null)
     var showNew by remember { mutableStateOf(false) }
@@ -65,6 +66,7 @@ fun SpacesScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, onSettings: () ->
             LargeTopAppBar(
                 title = { Text("Priestor") },
                 actions = {
+                    IconButton(onClick = onLog) { Icon(Icons.Rounded.CalendarMonth, "Kalendár činností") }
                     IconButton(onClick = onJoin) { Icon(Icons.Rounded.GroupAdd, "Pripojiť sa kódom") }
                     IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, "Nastavenia") }
                 },
@@ -84,7 +86,7 @@ fun SpacesScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, onSettings: () ->
             list == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            list.isEmpty() -> EmptySpaces(Modifier.padding(padding), onCreate = { showNew = true }, onJoin = onJoin)
+            list.isEmpty() -> EmptySpaces(Modifier.padding(padding), onCreate = { showNew = true }, onJoin = onJoin, onLog = onLog)
             else -> LazyColumn(
                 contentPadding = PaddingValues(
                     start = 16.dp, end = 16.dp,
@@ -93,6 +95,7 @@ fun SpacesScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, onSettings: () ->
                 ),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                item(key = "log") { LogCard(onLog) }
                 items(list, key = { it.id }) { space -> SpaceCard(space) { onOpen(space.id) } }
             }
         }
@@ -106,6 +109,29 @@ fun SpacesScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, onSettings: () ->
                 onOpen(Repo.createSpace(name, sections, color))
             },
         )
+    }
+}
+
+@Composable
+private fun LogCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.CalendarMonth, null, Modifier.size(32.dp))
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Kalendár činností", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Kedy ste kosili, polievali, menili olej…",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 
@@ -156,7 +182,7 @@ private fun SpaceCard(space: Space, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EmptySpaces(modifier: Modifier, onCreate: () -> Unit, onJoin: () -> Unit) {
+private fun EmptySpaces(modifier: Modifier, onCreate: () -> Unit, onJoin: () -> Unit, onLog: () -> Unit) {
     Column(
         modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -181,5 +207,6 @@ private fun EmptySpaces(modifier: Modifier, onCreate: () -> Unit, onJoin: () -> 
         OutlinedButton(onClick = onCreate) { Text("Vytvoriť vlastnú") }
         Spacer(Modifier.height(8.dp))
         androidx.compose.material3.TextButton(onClick = onJoin) { Text("Mám kód pozvánky") }
+        androidx.compose.material3.TextButton(onClick = onLog) { Text("Kalendár činností") }
     }
 }

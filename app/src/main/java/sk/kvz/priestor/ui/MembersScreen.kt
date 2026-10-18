@@ -63,7 +63,8 @@ fun MembersScreen(spaceId: String, onBack: () -> Unit) {
             item {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Túto oblasť vidia iba ľudia v zozname nižšie. Ostatné vaše oblasti sa im nezobrazia.",
+                        if (s.isLog) "Túto činnosť a jej záznamy vidia iba ľudia v zozname nižšie. Ostatné vaše činnosti ani oblasti sa im nezobrazia."
+                        else "Túto oblasť vidia iba ľudia v zozname nižšie. Ostatné vaše oblasti sa im nezobrazia.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Button(
@@ -111,7 +112,8 @@ fun MembersScreen(spaceId: String, onBack: () -> Unit) {
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        val text = "Pridaj sa do oblasti „${s.name}“ v aplikácii Priestor.\n$link\nKód: $code"
+                        val what = if (s.isLog) "k činnosti" else "do oblasti"
+                        val text = "Pridaj sa $what „${s.name}“ v aplikácii Priestor.\n$link\nKód: $code"
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
                         context.startActivity(Intent.createChooser(send, "Poslať pozvánku"))
                     }) {
@@ -126,7 +128,7 @@ fun MembersScreen(spaceId: String, onBack: () -> Unit) {
         removing?.let { (uid, name) ->
             ConfirmDialog(
                 "Odobrať $name?",
-                "Prestane vidieť túto oblasť aj jej úlohy.",
+                if (s.isLog) "Prestane vidieť túto činnosť aj jej záznamy." else "Prestane vidieť túto oblasť aj jej úlohy.",
                 "Odobrať",
                 onDismiss = { removing = null },
             ) {

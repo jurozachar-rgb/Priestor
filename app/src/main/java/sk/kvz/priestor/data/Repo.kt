@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.security.SecureRandom
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -21,7 +22,11 @@ import java.util.UUID
  * Štruktúra:
  *  spaces/{spaceId}                 – oblasť (name, ownerId, members[], memberNames{}, sections[], color)
  *  spaces/{spaceId}/tasks/{taskId}  – úloha
+ *  spaces/{spaceId}/entries/{id}    – záznam v kalendári činností (iba pri kind = "log")
  *  invites/{kód}                    – pozvánka do oblasti (spaceId, spaceName, createdBy, expiresAt)
+ *
+ * Činnosť v kalendári (Kosenie…) je technicky oblasť s kind = "log" – zdieľa sa rovnako
+ * (pozvánky, členovia), ale v zozname oblastí sa nezobrazuje.
  *
  * Zápisy nečakajú na server – Firestore ich uloží lokálne a odošle, keď je sieť.
  */
@@ -48,6 +53,19 @@ object Repo {
         val reg = spaces.whereArrayContains("members", uid).addSnapshotListener { snap, e ->
             if (e != null) { Log.w(TAG, "spaces", e); return@addSnapshotListener }
             val list = snap?.documents?.mapNotNull { it.toSpace() }.orEmpty()
+                .filter { !it.isLog }
+                .sortedBy { it.name.lowercase() }
+            trySend(list)
+        }
+        awaitClose { reg.remove() }
+    }
+
+    /** Moje činnosti v kalendári činností. */
+    fun activitiesFlow(): Flow<List<Space>> = callbackFlow {
+        val reg = spaces.whereArrayContains("members", uid).addSnapshotListener { snap, e ->
+            if (e != null) { Log.w(TAG, "activities", e); return@addSnapshotListener }
+            val list = snap?.documents?.mapNotNull { it.toSpace() }.orEmpty()
+                .filter { it.isLog }
                 .sortedBy { it.name.lowercase() }
             trySend(list)
         }
@@ -62,10 +80,10 @@ object Repo {
         awaitClose { reg.remove() }
     }
 
-    fun createSpace(name: String, sectionNames: List<String>, color: Int): String {
+    fun createSpace(name: String, sectionNames: List<String>, color: Int, kind: String? = null): String {
         val ref = spaces.document()
         ref.set(
-            mapOf(
+            listOfNotNull(
                 "name" to name.trim(),
                 "ownerId" to uid,
                 "members" to listOf(uid),
@@ -74,13 +92,20 @@ object Repo {
                     .map { mapOf("id" to newId(), "name" to it) },
                 "color" to color,
                 "createdAt" to FieldValue.serverTimestamp(),
-            )
+                kind?.let { "kind" to it },
+            ).toMap()
         ).logFailure("createSpace")
         return ref.id
     }
 
+    fun createActivity(name: String, color: Int): String = createSpace(name, emptyList(), color, KIND_LOG)
+
     fun renameSpace(spaceId: String, name: String) {
         spaces.document(spaceId).update("name", name.trim()).logFailure("renameSpace")
+    }
+
+    fun setColor(spaceId: String, color: Int) {
+        spaces.document(spaceId).update("color", color).logFailure("setColor")
     }
 
     fun updateSections(spaceId: String, sections: List<Section>) {
@@ -92,11 +117,12 @@ object Repo {
     /** Vlastník zmaže oblasť aj so všetkými úlohami a pozvánkami. */
     suspend fun deleteSpace(spaceId: String) {
         val ref = spaces.document(spaceId)
-        val tasks = ref.collection("tasks").get().await()
-        tasks.documents.chunked(400).forEach { chunk ->
-            val b = db.batch()
-            chunk.forEach { b.delete(it.reference) }
-            b.commit().await()
+        for (sub in listOf("tasks", "entries")) {
+            ref.collection(sub).get().await().documents.chunked(400).forEach { chunk ->
+                val b = db.batch()
+                chunk.forEach { b.delete(it.reference) }
+                b.commit().await()
+            }
         }
         invites.whereEqualTo("createdBy", uid).whereEqualTo("spaceId", spaceId).get().await()
             .documents.forEach { it.reference.delete().await() }
@@ -217,13 +243,46 @@ object Repo {
     /** Všetky nesplnené úlohy s termínom vo všetkých mojich oblastiach – pre pripomienky. */
     suspend fun openTasksWithDue(): List<Pair<Space, TaskItem>> {
         val mySpaces = spaces.whereArrayContains("members", uid).get().await()
-            .documents.mapNotNull { it.toSpace() }
+            .documents.mapNotNull { it.toSpace() }.filter { !it.isLog }
         return mySpaces.flatMap { space ->
             spaces.document(space.id).collection("tasks").whereEqualTo("done", false).get().await()
                 .documents.mapNotNull { it.toTask(space.id) }
                 .filter { it.dueAt != null }
                 .map { space to it }
         }
+    }
+
+    // ---------- Kalendár činností ----------
+
+    fun entriesFlow(spaceId: String): Flow<List<LogEntry>> = callbackFlow {
+        val reg = spaces.document(spaceId).collection("entries").addSnapshotListener { snap, e ->
+            if (e != null) { Log.w(TAG, "entries", e); return@addSnapshotListener }
+            trySend(snap?.documents?.mapNotNull { it.toLogEntry(spaceId) }.orEmpty())
+        }
+        awaitClose { reg.remove() }
+    }
+
+    fun addEntry(spaceId: String, date: LocalDate, note: String) {
+        spaces.document(spaceId).collection("entries").document().set(
+            mapOf(
+                "date" to date.toString(),
+                "note" to note.trim(),
+                "createdBy" to uid,
+                "createdByName" to myName,
+                "createdAt" to FieldValue.serverTimestamp(),
+            )
+        ).logFailure("addEntry")
+    }
+
+    fun updateEntry(entry: LogEntry, date: LocalDate, note: String) {
+        spaces.document(entry.spaceId).collection("entries").document(entry.id)
+            .update(mapOf("date" to date.toString(), "note" to note.trim()))
+            .logFailure("updateEntry")
+    }
+
+    fun deleteEntry(entry: LogEntry) {
+        spaces.document(entry.spaceId).collection("entries").document(entry.id).delete()
+            .logFailure("deleteEntry")
     }
 
     // ---------- Účet ----------

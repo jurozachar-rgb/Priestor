@@ -50,3 +50,58 @@ val spaceColors = listOf(
 )
 
 fun spaceColor(index: Int): Color = spaceColors[index.mod(spaceColors.size)]
+
+// ---------- Kalendár činností ----------
+
+private val monthsNom = listOf(
+    "január", "február", "marec", "apríl", "máj", "jún",
+    "júl", "august", "september", "október", "november", "december",
+)
+private val monthsGen = listOf(
+    "januára", "februára", "marca", "apríla", "mája", "júna",
+    "júla", "augusta", "septembra", "októbra", "novembra", "decembra",
+)
+val weekdaysShort = listOf("po", "ut", "st", "št", "pi", "so", "ne")
+private val weekdaysLong = listOf("pondelok", "utorok", "streda", "štvrtok", "piatok", "sobota", "nedeľa")
+
+/** „Október 2026“ */
+fun monthTitle(month: java.time.YearMonth): String =
+    monthsNom[month.monthValue - 1].replaceFirstChar { it.uppercase() } + " " + month.year
+
+/** „1. novembra 2026“ alebo bez roka „1. novembra“ */
+fun longDate(d: LocalDate, withYear: Boolean = true): String =
+    "${d.dayOfMonth}. ${monthsGen[d.monthValue - 1]}" + if (withYear) " ${d.year}" else ""
+
+/** „streda 18. októbra 2026“ */
+fun longDateWithDay(d: LocalDate): String = "${weekdaysLong[d.dayOfWeek.value - 1]} ${longDate(d)}"
+
+fun weekdayShort(d: LocalDate): String = weekdaysShort[d.dayOfWeek.value - 1]
+
+/** „dnes“, „včera“, „pred 5 dňami“, „o 3 dni“ */
+fun relativeDays(d: LocalDate, today: LocalDate = LocalDate.now()): String {
+    val n = java.time.temporal.ChronoUnit.DAYS.between(d, today)
+    return when {
+        n == 0L -> "dnes"
+        n == 1L -> "včera"
+        n == -1L -> "zajtra"
+        n > 1 -> "pred $n dňami"
+        -n in 2..4 -> "o ${-n} dni"
+        else -> "o ${-n} dní"
+    }
+}
+
+/** „1 raz“, „3 razy“, „7 krát“ */
+fun timesCount(n: Int): String = when (n) {
+    1 -> "1 raz"
+    in 2..4 -> "$n razy"
+    0 -> "0-krát"
+    else -> "$n-krát"
+}
+
+/** „žiadne záznamy“, „1 záznam“, „3 záznamy“, „8 záznamov“ */
+fun entriesCount(n: Int): String = when (n) {
+    0 -> "žiadne záznamy"
+    1 -> "1 záznam"
+    in 2..4 -> "$n záznamy"
+    else -> "$n záznamov"
+}

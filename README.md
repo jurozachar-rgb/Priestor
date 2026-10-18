@@ -3,6 +3,10 @@
 Jednoduchý zdieľaný to-do list pre Android. Oblasti (Domov, Nákup, Chata, Dovolenka…) s vlastnými sekciami,
 úlohy s nepovinným termínom a pripomienkami, archív urobených úloh. Každú oblasť vidia iba ľudia, ktorých do nej pozvete.
 
+**Kalendár činností** – zapisujete si, kedy ste čo robili (kosenie, polievanie, výmena oleja…). Mesačný kalendár
+s farebnými bodkami a pod ním súhrn vybranej činnosti: všetky termíny pod sebou, počet, kedy naposledy a ako často.
+Každú činnosť možno zdieľať pozvánkou rovnako ako oblasť.
+
 **Technológie:** Kotlin, Jetpack Compose (Material 3), Firebase Auth (prihlásenie Google) a Cloud Firestore.
 Web `priestor.kvz.sk` (zásady súkromia, pozvánky) je v priečinku `docs/`.
 
@@ -22,6 +26,8 @@ Web `priestor.kvz.sk` (zásady súkromia, pozvánky) je v priečinku `docs/`.
 ```
 spaces/{id}               názov, vlastník, členovia, mená členov, sekcie, farba
 spaces/{id}/tasks/{id}    úloha: názov, poznámka, sekcia, termín, hotovo, kto pridal/splnil
+spaces/{id}/entries/{id}  záznam v kalendári činností: dátum (RRRR-MM-DD), poznámka, kto zapísal
+                          (iba v oblastiach s kind = "log" – to sú činnosti, v zozname oblastí sa nezobrazujú)
 invites/{KÓD}             pozvánka do oblasti, platí 7 dní
 ```
 

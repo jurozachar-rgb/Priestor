@@ -47,10 +47,10 @@ fun JoinDialog(initialCode: String, onDismiss: () -> Unit, onJoined: (String) ->
     val err = error
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Pripojiť sa k oblasti") },
+        title = { Text("Pripojiť sa kódom") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Zadajte kód pozvánky, ktorý vám niekto poslal.")
+                Text("Zadajte kód pozvánky do oblasti alebo činnosti, ktorý vám niekto poslal.")
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it.uppercase().take(12); error = null },
