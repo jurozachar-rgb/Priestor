@@ -28,7 +28,7 @@ export function MembersView({ space }: { space: Space }) {
       </p>
       <button type="button" className="primary" disabled={busy} onClick={async () => {
         setBusy(true); setError(null);
-        try { setCode(await Repo.createInvite(space)); } catch { setError('Pozvánku sa nepodarilo vytvoriť. Ste pripojený na internet?'); }
+        try { setCode(await Repo.createInvite(space)); } catch (e) { setError(e instanceof Error ? e.message : 'Pozvánku sa nepodarilo vytvoriť.'); }
         setBusy(false);
       }}>
         <Icon name="personAdd" size={20} /> {busy ? 'Vytváram…' : 'Pozvať ľudí'}

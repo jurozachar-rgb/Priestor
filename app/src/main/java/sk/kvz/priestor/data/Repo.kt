@@ -7,11 +7,14 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import java.security.SecureRandom
 import java.time.LocalDate
 import java.util.UUID
@@ -149,18 +152,40 @@ object Repo {
 
     // ---------- Pozvánky ----------
 
-    /** Vytvorí pozvánku platnú 7 dní a vráti jej kód. Vyžaduje pripojenie. */
+    /**
+     * Vytvorí pozvánku platnú 7 dní a vráti jej kód. Vyžaduje pripojenie.
+     * Pri chybe vyhodí výnimku so slovenskou správou pre používateľa (podľa skutočnej príčiny).
+     */
     suspend fun createInvite(space: Space): String {
         val code = newInviteCode()
-        invites.document(code).set(
-            mapOf(
-                "spaceId" to space.id,
-                "spaceName" to space.name,
-                "createdBy" to uid,
-                "createdAt" to FieldValue.serverTimestamp(),
-                "expiresAt" to (System.currentTimeMillis() + 7L * 24 * 3600 * 1000).toTimestamp(),
+        try {
+            // Bez internetu by zápis čakal donekonečna (offline fronta) – po 15 s to vzdáme.
+            withTimeout(15_000) {
+                invites.document(code).set(
+                    mapOf(
+                        "spaceId" to space.id,
+                        "spaceName" to space.name,
+                        "createdBy" to uid,
+                        "createdAt" to FieldValue.serverTimestamp(),
+                        "expiresAt" to (System.currentTimeMillis() + 7L * 24 * 3600 * 1000).toTimestamp(),
+                    )
+                ).await()
+            }
+        } catch (e: TimeoutCancellationException) {
+            invites.document(code).delete() // zrušiť čakajúci zápis z offline fronty
+            throw IllegalStateException("Pozvánku sa nepodarilo vytvoriť – server neodpovedá. Ste pripojený na internet?", e)
+        } catch (e: FirebaseFirestoreException) {
+            Log.w(TAG, "createInvite", e)
+            throw IllegalStateException(
+                when (e.code) {
+                    FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+                        "Server pozvánku odmietol. Skontrolujte, či máte najnovšiu verziu aplikácie a správny dátum a čas v telefóne."
+                    FirebaseFirestoreException.Code.UNAVAILABLE, FirebaseFirestoreException.Code.DEADLINE_EXCEEDED ->
+                        "Pozvánku sa nepodarilo vytvoriť. Ste pripojený na internet?"
+                    else -> "Pozvánku sa nepodarilo vytvoriť (${e.code})."
+                }, e
             )
-        ).await()
+        }
         return code
     }
 

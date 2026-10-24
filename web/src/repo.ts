@@ -201,13 +201,25 @@ function newInviteCode(): string {
 /** Vytvorí pozvánku platnú 7 dní a vráti jej kód. */
 export async function createInvite(space: Space): Promise<string> {
   const code = newInviteCode();
-  await setDoc(doc(invites, code), {
-    spaceId: space.id,
-    spaceName: space.name,
-    createdBy: uid(),
-    createdAt: serverTimestamp(),
-    expiresAt: Timestamp.fromMillis(Date.now() + 7 * 24 * 3600 * 1000),
-  });
+  try {
+    await setDoc(doc(invites, code), {
+      spaceId: space.id,
+      spaceName: space.name,
+      createdBy: uid(),
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 7 * 24 * 3600 * 1000),
+    });
+  } catch (e) {
+    console.warn('createInvite', e);
+    const c = (e as { code?: string }).code;
+    if (c === 'permission-denied') {
+      throw new Error('Server pozvánku odmietol. Obnovte stránku (najnovšia verzia) a skontrolujte dátum a čas v počítači.');
+    }
+    if (c === 'unavailable' || c === 'deadline-exceeded') {
+      throw new Error('Pozvánku sa nepodarilo vytvoriť. Ste pripojený na internet?');
+    }
+    throw new Error(`Pozvánku sa nepodarilo vytvoriť${c ? ` (${c})` : ''}.`);
+  }
   return code;
 }
 

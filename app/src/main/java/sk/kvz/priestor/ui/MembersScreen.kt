@@ -75,7 +75,7 @@ fun MembersScreen(spaceId: String, onBack: () -> Unit) {
                             scope.launch {
                                 runCatching { Repo.createInvite(s) }
                                     .onSuccess { inviteCode = it }
-                                    .onFailure { error = "Pozvánku sa nepodarilo vytvoriť. Ste pripojený na internet?" }
+                                    .onFailure { error = it.message ?: "Pozvánku sa nepodarilo vytvoriť." }
                                 busy = false
                             }
                         },
