@@ -53,6 +53,11 @@ Pripomienky: termín s časom → hodinu vopred a v čase termínu; termín bez 
 
 Zabezpečenie je popísané v [SECURITY.md](SECURITY.md).
 
+**Automatické zverejnenie pravidiel databázy:** po každej zmene v `firebase/` workflow „Test pravidiel Firestore“
+pravidlá otestuje a ak prejdú, sám ich zverejní. Potrebuje GitHub secret `FIREBASE_SERVICE_ACCOUNT` – JSON kľúč
+servisného účtu `priestor-rules-deploy` s rolami *Firebase Rules Admin* a *Service Usage Consumer*
+(Google Cloud konzola → IAM → Service accounts). Bez secretu sa krok preskočí a pravidlá treba vložiť ručne.
+
 ## Pred zverejnením na Google Play
 
 - Nastaviť GitHub secret `SIGNING_PASSWORD` (heslo k vlastnému kľúču) – potom vznikne aj balík `.aab`

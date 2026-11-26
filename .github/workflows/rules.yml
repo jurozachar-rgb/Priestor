@@ -25,3 +25,28 @@ jobs:
         run: |
           firebase/test/node_modules/.bin/firebase emulators:exec --only firestore --project demo-priestor \
             "cd firebase/test && node --test --test-concurrency=1 rules.test.mjs"
+
+  # Po úspešných testoch zverejní pravidlá do Firebase (iba z vetvy main).
+  # Potrebuje GitHub secret FIREBASE_SERVICE_ACCOUNT = JSON kľúč servisného účtu
+  # s rolami „Firebase Rules Admin“ a „Service Usage Consumer“ v projekte td-app-67ad6.
+  deploy:
+    needs: rules
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Zverejniť pravidlá Firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::warning::Chýba secret FIREBASE_SERVICE_ACCOUNT – pravidlá treba zverejniť ručne vo Firebase konzole."
+            exit 0
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools@14.11.0 deploy --only firestore:rules --project td-app-67ad6 --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
