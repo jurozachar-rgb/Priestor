@@ -37,7 +37,7 @@ fun isOverdue(millis: Long, hasTime: Boolean): Boolean {
     else Instant.ofEpochMilli(millis).atZone(zone).toLocalDate().isBefore(LocalDate.now(zone))
 }
 
-/** Farby oblastí. */
+/** Farby oblastí a činností. Index sa ukladá do databázy – nové farby iba pridávať na koniec. */
 val spaceColors = listOf(
     Color(0xFF2F6B4F), // zelená
     Color(0xFF3B6EA8), // modrá
@@ -47,7 +47,23 @@ val spaceColors = listOf(
     Color(0xFF4F8C8C), // tyrkysová
     Color(0xFFA8485E), // vínová
     Color(0xFF6B6B6B), // sivá
+    Color(0xFFD32F2F), // červená
+    Color(0xFFEF7C00), // oranžová
+    Color(0xFFE6B800), // žltá
+    Color(0xFF7CB342), // svetlozelená
+    Color(0xFF00A3B4), // azúrová
+    Color(0xFF5C6BC0), // indigová
+    Color(0xFF1F2F4F), // tmavomodrá
+    Color(0xFFD65A9C), // ružová
+    Color(0xFFFF8A75), // lososová
+    Color(0xFF795548), // hnedá
+    Color(0xFF8D8A1E), // olivová
+    Color(0xFF222222), // čierna
 )
+
+/** Prvá farba, ktorú ešte nepoužíva žiadna z [used]; ak sú obsadené všetky, náhodná. */
+fun firstFreeColor(used: Collection<Int>): Int =
+    spaceColors.indices.firstOrNull { it !in used } ?: spaceColors.indices.random()
 
 fun spaceColor(index: Int): Color = spaceColors[index.mod(spaceColors.size)]
 

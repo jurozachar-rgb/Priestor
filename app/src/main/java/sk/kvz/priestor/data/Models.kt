@@ -36,6 +36,8 @@ data class TaskItem(
     val doneByName: String?,
     val createdByName: String?,
     val createdAt: Long,
+    /** Ručné poradie (ťahanie prstom). null = úloha ešte nebola presúvaná. */
+    val order: Double? = null,
 )
 
 @Suppress("UNCHECKED_CAST")
@@ -93,7 +95,8 @@ internal fun DocumentSnapshot.toTask(spaceId: String): TaskItem? {
         doneAt = getTimestamp("doneAt")?.toMillis(),
         doneByName = getString("doneByName"),
         createdByName = getString("createdByName"),
-        createdAt = getTimestamp("createdAt")?.toMillis() ?: 0L,
+        createdAt = getTimestamp("createdAt")?.toMillis() ?: Long.MAX_VALUE, // ešte nepotvrdená = najnovšia
+        order = (get("order") as? Number)?.toDouble(),
     )
 }
 

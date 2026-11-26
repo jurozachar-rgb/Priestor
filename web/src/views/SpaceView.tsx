@@ -1,11 +1,11 @@
-import { type ReactNode, useState } from 'react';
+import { type HTMLAttributes, type ReactNode, useState } from 'react';
 import type { Ctx } from '../App';
 import { EditSectionsDialog } from '../dialogs';
 import { formatDue, isOverdue } from '../format';
 import { navigate, useTasks } from '../hooks';
-import { type Space, type TaskItem, taskOrder } from '../model';
+import { type Space, type TaskItem, taskOrder, titleSuggestions } from '../model';
 import * as Repo from '../repo';
-import { Chip, ColorPicker, ConfirmDialog, IconButton, Menu, Modal, TextInputDialog, Tile } from '../ui';
+import { Chip, ColorPicker, ConfirmDialog, Icon, IconButton, Menu, Modal, Suggestions, TextInputDialog, Tile } from '../ui';
 import { TaskEditor } from './TaskEditor';
 
 const ALL = '__all__';
@@ -17,6 +17,8 @@ export function SpaceView({ space, ctx }: { space: Space; ctx: Ctx }) {
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<null | 'sections' | 'rename' | 'color' | 'delete' | 'leave'>(null);
   const [quick, setQuick] = useState('');
+  // Ťahanie myšou: ktorá úloha sa ťahá, v ktorej skupine a aktuálne (ešte neuložené) poradie skupiny.
+  const [drag, setDrag] = useState<{ id: string; group: string; items: TaskItem[] } | null>(null);
 
   const isOwner = space.ownerId === ctx.user.uid;
   const validIds = new Set(space.sections.map((s) => s.id));
@@ -29,13 +31,51 @@ export function SpaceView({ space, ctx }: { space: Space; ctx: Ctx }) {
     ctx.toast({ text: `Hotovo: ${t.title}`, action: { label: 'Späť', run: () => Repo.setDone(t, false) } });
   };
 
-  const addQuick = () => {
-    if (!quick.trim()) return;
-    Repo.saveTask(space.id, null, quick, '', active === ALL ? null : active, null, false);
+  const addQuick = (title = quick, fromSectionId: string | null = null) => {
+    if (!title.trim()) return;
+    const section = active !== ALL ? active : fromSectionId && validIds.has(fromSectionId) ? fromSectionId : null;
+    Repo.saveTask(space.id, null, title, '', section, null, false);
     setQuick('');
   };
+  const suggestions = titleSuggestions(quick, tasks ?? []);
 
-  const row = (t: TaskItem) => <TaskRow key={t.id} task={t} onCheck={() => complete(t)} onOpen={() => setEditing(t)} />;
+  /** Zoznam úloh jednej skupiny (sekcie), ktorý sa dá preusporiadať ťahaním myšou. */
+  const list = (group: string, items: TaskItem[]) => {
+    const sorted = drag?.group === group ? drag.items : [...items].sort(taskOrder);
+    return (
+      <ul className="tasks">
+        {sorted.map((t) => (
+          <TaskRow key={t.id} task={t} onCheck={() => complete(t)} onOpen={() => setEditing(t)}
+            dragging={drag?.id === t.id}
+            dnd={{
+              draggable: true,
+              onDragStart: (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', t.id);
+                setDrag({ id: t.id, group, items: sorted });
+              },
+              onDragOver: (e) => {
+                if (!drag || drag.group !== group) return;
+                e.preventDefault();
+                if (drag.id === t.id) return;
+                const from = drag.items.findIndex((x) => x.id === drag.id);
+                const to = drag.items.findIndex((x) => x.id === t.id);
+                if (from < 0 || to < 0) return;
+                const next = [...drag.items];
+                next.splice(to, 0, ...next.splice(from, 1));
+                setDrag({ ...drag, items: next });
+              },
+              onDrop: (e) => e.preventDefault(),
+              onDragEnd: () => {
+                if (drag) Repo.reorderTasks(space.id, drag.items);
+                setDrag(null);
+              },
+            }}
+            trailing={<span className="drag-handle" title="Presunúť – chyťte a potiahnite"><Icon name="drag" /></span>} />
+        ))}
+      </ul>
+    );
+  };
 
   return (
     <div className="page">
@@ -71,10 +111,14 @@ export function SpaceView({ space, ctx }: { space: Space; ctx: Ctx }) {
       <form className="quick-add" onSubmit={(e) => { e.preventDefault(); addQuick(); }}>
         <input className="field" value={quick} onChange={(e) => setQuick(e.target.value)} maxLength={500}
           placeholder={active === ALL ? 'Pridať úlohu…' : `Pridať do „${space.sections.find((s) => s.id === active)?.name}“…`}
-          aria-label="Nová úloha" />
+          aria-label="Nová úloha" autoComplete="off" />
         <button type="submit" className="primary" disabled={!quick.trim()}>Pridať</button>
         <button type="button" className="outline" onClick={() => setCreating(true)}>S termínom…</button>
       </form>
+      <Suggestions items={suggestions} onPick={(title) => {
+        const from = suggestions.find((s) => s.title === title);
+        addQuick(title, from?.sectionId ?? null);
+      }} />
 
       {tasks === null ? (
         <div className="center-pane"><div className="spinner" aria-label="Načítavam" /></div>
@@ -87,15 +131,15 @@ export function SpaceView({ space, ctx }: { space: Space; ctx: Ctx }) {
           .map((g) => (
             <section key={g.key} className="group">
               <h2 className="group-title">{g.title}</h2>
-              <ul className="tasks">{[...g.list].sort(taskOrder).map(row)}</ul>
+              {list(g.key, g.list)}
             </section>
           ))
       ) : (
-        <ul className="tasks">{[...shown].sort(taskOrder).map(row)}</ul>
+        list(active, shown)
       )}
 
       {(creating || editing) && (
-        <TaskEditor space={space} task={editing}
+        <TaskEditor space={space} task={editing} allTasks={tasks ?? []}
           defaultSectionId={active === ALL ? null : active}
           onClose={() => { setCreating(false); setEditing(null); }} />
       )}
@@ -137,9 +181,9 @@ export function ColorDialog({ space, onClose }: { space: Space; onClose: () => v
   );
 }
 
-export function TaskRow({ task, sectionName, onCheck, onOpen, meta, trailing }: {
+export function TaskRow({ task, sectionName, onCheck, onOpen, meta, trailing, dnd, dragging }: {
   task: TaskItem; sectionName?: string | null; onCheck: () => void; onOpen?: () => void;
-  meta?: string; trailing?: ReactNode;
+  meta?: string; trailing?: ReactNode; dnd?: HTMLAttributes<HTMLLIElement> & { draggable?: boolean }; dragging?: boolean;
 }) {
   const parts = meta != null ? [meta] : [
     task.dueAt != null ? formatDue(task.dueAt, task.hasTime) : null,
@@ -148,7 +192,7 @@ export function TaskRow({ task, sectionName, onCheck, onOpen, meta, trailing }: 
   ].filter(Boolean);
   const overdue = !task.done && task.dueAt != null && isOverdue(task.dueAt, task.hasTime);
   return (
-    <li className="task">
+    <li className={`task${dragging ? ' dragging' : ''}`} {...dnd}>
       <input type="checkbox" className="check" checked={task.done} onChange={onCheck}
         aria-label={task.done ? `Vrátiť medzi otvorené: ${task.title}` : `Hotovo: ${task.title}`} />
       <button type="button" className="task-body" onClick={onOpen} disabled={!onOpen}>

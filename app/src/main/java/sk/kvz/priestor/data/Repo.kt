@@ -260,6 +260,23 @@ object Repo {
         ).logFailure("setDone")
     }
 
+    /**
+     * Uloží ručné poradie úloh – [orderedIds] sú ID úloh zhora nadol.
+     * Zapisuje iba tie, ktorým sa poradie naozaj zmenilo.
+     */
+    fun reorderTasks(spaceId: String, orderedIds: List<String>, current: Map<String, Double?>) {
+        val col = spaces.document(spaceId).collection("tasks")
+        val b = db.batch()
+        var n = 0
+        orderedIds.forEachIndexed { i, id ->
+            if (current[id] != i.toDouble()) {
+                b.update(col.document(id), "order", i.toDouble())
+                n++
+            }
+        }
+        if (n > 0) b.commit().logFailure("reorderTasks")
+    }
+
     fun deleteTask(task: TaskItem) {
         spaces.document(task.spaceId).collection("tasks").document(task.id).delete()
             .logFailure("deleteTask")

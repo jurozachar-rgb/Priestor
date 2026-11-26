@@ -5,8 +5,17 @@ const monthsGen = ['januára', 'februára', 'marca', 'apríla', 'mája', 'júna'
 export const weekdaysShort = ['po', 'ut', 'st', 'št', 'pi', 'so', 'ne'];
 const weekdaysLong = ['pondelok', 'utorok', 'streda', 'štvrtok', 'piatok', 'sobota', 'nedeľa'];
 
-/** Farby oblastí (index sa ukladá do databázy). */
-export const spaceColors = ['#2F6B4F', '#3B6EA8', '#B5643C', '#8A5A9E', '#B8912F', '#4F8C8C', '#A8485E', '#6B6B6B'];
+/** Farby oblastí a činností (index sa ukladá do databázy – nové farby iba pridávať na koniec). */
+export const spaceColors = [
+  '#2F6B4F', '#3B6EA8', '#B5643C', '#8A5A9E', '#B8912F', '#4F8C8C', '#A8485E', '#6B6B6B',
+  '#D32F2F', '#EF7C00', '#E6B800', '#7CB342', '#00A3B4', '#5C6BC0', '#1F2F4F', '#D65A9C',
+  '#FF8A75', '#795548', '#8D8A1E', '#222222',
+];
+/** Prvá farba, ktorú ešte nepoužíva žiadna z used; ak sú obsadené všetky, náhodná. */
+export const firstFreeColor = (used: number[]) => {
+  const i = spaceColors.findIndex((_, j) => !used.includes(j));
+  return i >= 0 ? i : Math.floor(Math.random() * spaceColors.length);
+};
 export const spaceColor = (i: number) => spaceColors[((i % spaceColors.length) + spaceColors.length) % spaceColors.length];
 
 // ---------- Dátumy ako 'RRRR-MM-DD' (lokálny deň) ----------

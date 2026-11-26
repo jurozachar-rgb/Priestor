@@ -2,6 +2,9 @@
 
 Jednoduchý zdieľaný to-do list pre Android a web (https://priestor.jurajzachar.sk). Oblasti (Domov, Nákup, Chata, Dovolenka…) s vlastnými sekciami,
 úlohy s nepovinným termínom a pripomienkami, archív urobených úloh. Každú oblasť vidia iba ľudia, ktorých do nej pozvete.
+Poradie úloh sa dá meniť ťahaním (v telefóne podržať prst na úlohe alebo chytiť úchyt vpravo, na webe ťahať myšou).
+Pri písaní novej úlohy aplikácia po 2 znakoch ponúkne, čo už v oblasti niekedy bolo (aj z archívu) – napr. „pec“ → Pečivo.
+Oblasti aj činnosti majú na výber 20 farieb.
 
 **Kalendár činností** – zapisujete si, kedy ste čo robili (kosenie, polievanie, výmena oleja…). Mesačný kalendár
 s farebnými bodkami a pod ním súhrn vybranej činnosti: všetky termíny pod sebou, počet, kedy naposledy a ako často.
@@ -28,7 +31,7 @@ statické stránky (zásady súkromia, assetlinks) v `docs/`. Obe sa zverejňuj�
 
 ```
 spaces/{id}               názov, vlastník, členovia, mená členov, sekcie, farba
-spaces/{id}/tasks/{id}    úloha: názov, poznámka, sekcia, termín, hotovo, kto pridal/splnil
+spaces/{id}/tasks/{id}    úloha: názov, poznámka, sekcia, termín, hotovo, kto pridal/splnil, order (ručné poradie)
 spaces/{id}/entries/{id}  záznam v kalendári činností: dátum (RRRR-MM-DD), poznámka, kto zapísal
                           (iba v oblastiach s kind = "log" – to sú činnosti, v zozname oblastí sa nezobrazujú)
 invites/{KÓD}             pozvánka do oblasti, platí 7 dní

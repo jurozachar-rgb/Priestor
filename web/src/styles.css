@@ -217,6 +217,16 @@ textarea.field { resize: vertical; }
 .task-title { font-size: 16px; overflow-wrap: anywhere; }
 .task-meta { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .task-meta.overdue { color: var(--danger); font-weight: 600; }
+.task[draggable='true'] .drag-handle { cursor: grab; }
+.drag-handle { display: inline-flex; color: var(--muted); padding: 8px 6px; flex: none; opacity: .55; }
+.task:hover .drag-handle { opacity: 1; }
+.task.dragging { opacity: .45; background: var(--surface-2); }
+
+/* ---------- Návrhy pri písaní ---------- */
+.suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin: -10px 0 14px; }
+.stack .suggestions { margin: 6px 0 0; }
+.chip.suggestion { font-size: 14px; }
+.chip.suggestion .icon { margin-right: 2px; }
 
 /* ---------- Členovia, nastavenia ---------- */
 .members, .settings { list-style: none; margin: 24px 0 0; padding: 0; max-width: 560px; }
@@ -248,7 +258,7 @@ textarea.field { resize: vertical; }
 .modal-body { display: flex; flex-direction: column; gap: 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 22px; flex-wrap: wrap; }
 .push-left { margin-right: auto; }
-.colors { display: flex; gap: 10px; flex-wrap: wrap; }
+.colors { display: grid; grid-template-columns: repeat(5, 32px); gap: 10px; }
 .swatch { width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent; }
 .swatch.on { border-color: var(--fg); box-shadow: inset 0 0 0 2px var(--surface); }
 

@@ -104,6 +104,7 @@ fun SpacesScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, onSettings: () ->
     if (showNew) {
         NewSpaceDialog(
             onDismiss = { showNew = false },
+            usedColors = spaces.orEmpty().map { it.color },
             onCreate = { name, sections, color ->
                 showNew = false
                 onOpen(Repo.createSpace(name, sections, color))

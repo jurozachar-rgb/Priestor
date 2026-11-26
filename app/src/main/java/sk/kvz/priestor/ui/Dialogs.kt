@@ -1,6 +1,8 @@
 package sk.kvz.priestor.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -83,10 +85,14 @@ fun JoinDialog(initialCode: String, onDismiss: () -> Unit, onJoined: (String) ->
 }
 
 @Composable
-fun NewSpaceDialog(onDismiss: () -> Unit, onCreate: (name: String, sections: List<String>, color: Int) -> Unit) {
+fun NewSpaceDialog(
+    onDismiss: () -> Unit,
+    usedColors: Collection<Int> = emptyList(),
+    onCreate: (name: String, sections: List<String>, color: Int) -> Unit,
+) {
     var name by remember { mutableStateOf("") }
     var sections by remember { mutableStateOf("") }
-    var color by remember { mutableStateOf((0 until spaceColors.size).random()) }
+    var color by remember { mutableStateOf(firstFreeColor(usedColors)) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nová oblasť") },
@@ -116,13 +122,22 @@ fun NewSpaceDialog(onDismiss: () -> Unit, onCreate: (name: String, sections: Lis
     )
 }
 
+/** Výber z 20 farieb (4 riadky po 5). */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ColorPicker(selected: Int, onSelect: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        maxItemsInEachRow = 5,
+    ) {
         spaceColors.forEachIndexed { i, c ->
-            val ring = if (i == selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier
+            val ring = if (i == selected) {
+                Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                    .border(5.dp, MaterialTheme.colorScheme.surface, CircleShape)
+            } else Modifier
             androidx.compose.foundation.layout.Box(
-                Modifier.size(28.dp).clip(CircleShape).background(c).then(ring).clickable { onSelect(i) }
+                Modifier.size(34.dp).clip(CircleShape).background(c).then(ring).clickable { onSelect(i) }
             )
         }
     }

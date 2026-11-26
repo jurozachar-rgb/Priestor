@@ -207,6 +207,13 @@ test('člen odškrtne, upraví a zmaže úlohu', async () => {
   await assertSucceeds(deleteDoc(doc(db('bob'), 'spaces/nakup/tasks/t1')));
 });
 
+test('člen zmení poradie úlohy, poradie musí byť číslo', async () => {
+  await assertSucceeds(updateDoc(doc(db('bob'), 'spaces/nakup/tasks/t1'), { order: 3 }));
+  await assertSucceeds(updateDoc(doc(db('bob'), 'spaces/nakup/tasks/t1'), { order: 1.5 }));
+  await assertFails(updateDoc(doc(db('bob'), 'spaces/nakup/tasks/t1'), { order: 'prvá' }));
+  await assertFails(updateDoc(doc(db('carol'), 'spaces/nakup/tasks/t1'), { order: 0 }));
+});
+
 test('cudzí nemôže upraviť ani zmazať úlohu', async () => {
   await assertFails(updateDoc(doc(db('carol'), 'spaces/nakup/tasks/t1'), { done: true }));
   await assertFails(deleteDoc(doc(db('carol'), 'spaces/nakup/tasks/t1')));

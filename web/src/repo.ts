@@ -97,6 +97,7 @@ function toTask(d: DocumentSnapshot, spaceId: string): TaskItem | null {
     createdByName: x.createdByName ?? null,
     // pred potvrdením serverom je createdAt null – nové úlohy dáme hore
     createdAt: millis(x.createdAt) ?? Date.now(),
+    order: typeof x.order === 'number' ? x.order : null,
   };
 }
 
@@ -286,6 +287,16 @@ export function setDone(task: TaskItem, done: boolean) {
     doneAt: done ? serverTimestamp() : null,
     doneByName: done ? myName() : null,
   }).catch(fail('setDone'));
+}
+
+/** Uloží ručné poradie úloh – orderedIds zhora nadol. Zapisuje iba tie, ktorým sa poradie zmenilo. */
+export function reorderTasks(spaceId: string, ordered: TaskItem[]) {
+  const b = writeBatch(db);
+  let n = 0;
+  ordered.forEach((t, i) => {
+    if (t.order !== i) { b.update(doc(spaces, spaceId, 'tasks', t.id), { order: i }); n++; }
+  });
+  if (n > 0) b.commit().catch(fail('reorderTasks'));
 }
 
 export function deleteTask(task: TaskItem) {

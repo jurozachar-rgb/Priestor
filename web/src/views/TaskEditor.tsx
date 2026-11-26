@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { isoDate, parseIso, timeValue } from '../format';
-import type { Space, TaskItem } from '../model';
+import { type Space, type TaskItem, titleSuggestions } from '../model';
 import * as Repo from '../repo';
-import { Chip, ConfirmDialog, Modal } from '../ui';
+import { Chip, ConfirmDialog, Modal, Suggestions } from '../ui';
 
 /** Pridanie alebo úprava úlohy. task == null → nová úloha. */
-export function TaskEditor({ space, task, defaultSectionId, onClose }: {
+export function TaskEditor({ space, task, defaultSectionId, onClose, allTasks = [] }: {
   space: Space; task: TaskItem | null; defaultSectionId: string | null; onClose: () => void;
+  /** všetky úlohy oblasti vrátane archívu – z nich sú návrhy pri písaní */
+  allTasks?: TaskItem[];
 }) {
   const due = task?.dueAt != null ? new Date(task.dueAt) : null;
   const [title, setTitle] = useState(task?.title ?? '');
@@ -15,6 +17,7 @@ export function TaskEditor({ space, task, defaultSectionId, onClose }: {
   const [date, setDate] = useState(due ? isoDate(due) : '');
   const [time, setTime] = useState(due && task?.hasTime ? timeValue(due) : '');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const suggestions = task ? [] : titleSuggestions(title, allTasks);
 
   const save = () => {
     if (!title.trim()) return;
@@ -40,7 +43,14 @@ export function TaskEditor({ space, task, defaultSectionId, onClose }: {
           <div>
             <label className="label" htmlFor="t-title">Čo treba urobiť</label>
             <input id="t-title" className="field" value={title} maxLength={500} autoFocus
-              onChange={(e) => setTitle(e.target.value)} />
+              onChange={(e) => setTitle(e.target.value)} autoComplete="off" />
+            {!task && (
+              <Suggestions items={suggestions} onPick={(t) => {
+                setTitle(t);
+                const from = suggestions.find((s) => s.title === t);
+                if (sectionId == null && from?.sectionId && space.sections.some((s) => s.id === from.sectionId)) setSectionId(from.sectionId);
+              }} />
+            )}
           </div>
           <div>
             <label className="label" htmlFor="t-note">Poznámka (nepovinné)</label>

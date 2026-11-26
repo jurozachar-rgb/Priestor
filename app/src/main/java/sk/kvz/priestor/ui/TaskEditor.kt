@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -34,6 +35,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,7 +46,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import sk.kvz.priestor.data.Repo
@@ -56,7 +60,37 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 
-/** Spodný panel na pridanie alebo úpravu úlohy. [task] == null → nová úloha. */
+/** Bez diakritiky a malými písmenami – „Pečivo“ → „pecivo“. */
+internal fun normalizeForSearch(s: String): String =
+    java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .lowercase()
+        .trim()
+
+/**
+ * Návrhy názvov podľa toho, čo už v oblasti niekedy bolo (aj v archíve).
+ * Stačia 2 znaky; hľadá sa od začiatku názvu alebo od začiatku ktoréhokoľvek slova, bez ohľadu na diakritiku.
+ * Najprv tie, ktoré začínajú zadaným textom, potom naposledy použité.
+ */
+internal fun titleSuggestions(query: String, tasks: List<TaskItem>, limit: Int = 6): List<TaskItem> {
+    val q = normalizeForSearch(query)
+    if (q.length < 2) return emptyList()
+    return tasks
+        .map { it to normalizeForSearch(it.title) }
+        .filter { (_, n) -> n != q && (n.startsWith(q) || n.split(' ', '-', ',', '/').any { w -> w.startsWith(q) }) }
+        .sortedWith(
+            compareBy<Pair<TaskItem, String>>({ !it.second.startsWith(q) }, { it.first.done })
+                .thenByDescending { maxOf(it.first.doneAt ?: 0L, it.first.createdAt.takeIf { c -> c != Long.MAX_VALUE } ?: 0L) }
+        )
+        .distinctBy { it.second }
+        .take(limit)
+        .map { it.first }
+}
+
+/**
+ * Spodný panel na pridanie alebo úpravu úlohy. [task] == null → nová úloha.
+ * [allTasks] = všetky úlohy oblasti vrátane archívu – z nich sa ponúkajú návrhy pri písaní.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskEditor(
@@ -65,11 +99,13 @@ fun TaskEditor(
     defaultSectionId: String?,
     onDismiss: () -> Unit,
     onSaved: () -> Unit,
+    allTasks: List<TaskItem> = emptyList(),
 ) {
     val zone = ZoneId.systemDefault()
     val initialDue = task?.dueAt?.let { Instant.ofEpochMilli(it).atZone(zone) }
 
-    var title by remember { mutableStateOf(task?.title ?: "") }
+    var titleField by remember { mutableStateOf(TextFieldValue(task?.title ?: "")) }
+    val title = titleField.text
     var note by remember { mutableStateOf(task?.note ?: "") }
     var sectionId by remember { mutableStateOf(task?.sectionId ?: defaultSectionId) }
     var date by remember { mutableStateOf<LocalDate?>(initialDue?.toLocalDate()) }
@@ -102,11 +138,38 @@ fun TaskEditor(
         ) {
             Text(if (task == null) "Nová úloha" else "Upraviť úlohu", style = MaterialTheme.typography.titleLarge)
             OutlinedTextField(
-                value = title, onValueChange = { title = it },
+                value = titleField, onValueChange = { titleField = it },
                 label = { Text("Čo treba urobiť") },
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             )
+            // Návrhy z toho, čo už tu niekedy bolo (napr. „pec“ → Pečivo z archívu). Ťuknutím sa doplní.
+            val suggestions = remember(title, allTasks) {
+                if (task == null) titleSuggestions(title, allTasks) else emptyList()
+            }
+            if (suggestions.isNotEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    suggestions.forEach { sug ->
+                        val pick: () -> Unit = {
+                            titleField = TextFieldValue(sug.title, selection = TextRange(sug.title.length))
+                            // sekciu prevezmeme z minula, ak ešte nie je vybraná
+                            if (sectionId == null && space.sections.any { it.id == sug.sectionId }) sectionId = sug.sectionId
+                        }
+                        if (sug.done) {
+                            SuggestionChip(
+                                onClick = pick,
+                                label = { Text(sug.title) },
+                                icon = { Icon(Icons.Rounded.History, null) },
+                            )
+                        } else {
+                            SuggestionChip(onClick = pick, label = { Text("${sug.title} · už v zozname") })
+                        }
+                    }
+                }
+            }
             OutlinedTextField(
                 value = note, onValueChange = { note = it },
                 label = { Text("Poznámka (nepovinné)") },

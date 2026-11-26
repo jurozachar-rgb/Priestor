@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Ctx } from '../App';
 import {
-  daysBetween, entriesCount, isoDate, longDate, longDateWithDay, monthTitle, relativeDays, spaceColor, spaceColors,
+  daysBetween, entriesCount, isoDate, longDate, longDateWithDay, monthTitle, relativeDays, firstFreeColor, spaceColor,
   timesCount, todayIso, weekdayIndex, weekdayShort, weekdaysShort,
 } from '../format';
 import { navigate, useEntries } from '../hooks';
@@ -42,7 +42,7 @@ export function LogView({ ctx, selectedId }: { ctx: Ctx; selectedId: string | nu
           <button type="button" className="primary" onClick={() => select(Repo.createActivity('Kosenie', 0))}>Vytvoriť „Kosenie“</button>
           <button type="button" className="outline" onClick={() => setDialog('new')}>Vytvoriť vlastnú činnosť</button>
         </div>
-        {dialog === 'new' && <NewActivityDialog onClose={() => setDialog(null)} onCreate={(n, c) => { setDialog(null); select(Repo.createActivity(n, c)); }} />}
+        {dialog === 'new' && <NewActivityDialog usedColors={(activities ?? []).map((a) => a.color)} onClose={() => setDialog(null)} onCreate={(n, c) => { setDialog(null); select(Repo.createActivity(n, c)); }} />}
       </div>
     );
   }
@@ -115,7 +115,7 @@ export function LogView({ ctx, selectedId }: { ctx: Ctx; selectedId: string | nu
         <EditEntryDialog entry={editing} activityName={byId.get(editing.spaceId)?.name ?? ''} onClose={() => setEditing(null)} />
       )}
       {dialog === 'new' && (
-        <NewActivityDialog onClose={() => setDialog(null)} onCreate={(n, c) => { setDialog(null); select(Repo.createActivity(n, c)); }} />
+        <NewActivityDialog usedColors={(activities ?? []).map((a) => a.color)} onClose={() => setDialog(null)} onCreate={(n, c) => { setDialog(null); select(Repo.createActivity(n, c)); }} />
       )}
       {dialog === 'rename' && selected && (
         <TextInputDialog title="Premenovať činnosť" initial={selected.name} confirm="Uložiť" onClose={() => setDialog(null)}
@@ -336,9 +336,12 @@ function EditEntryDialog({ entry, activityName, onClose }: { entry: LogEntry; ac
 
 const SUGGESTIONS = ['Kosenie', 'Polievanie', 'Strihanie plota', 'Hnojenie', 'Výmena oleja'];
 
-function NewActivityDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (name: string, color: number) => void }) {
+function NewActivityDialog({ onClose, onCreate, usedColors }: {
+  onClose: () => void; onCreate: (name: string, color: number) => void; usedColors: number[];
+}) {
   const [name, setName] = useState('');
-  const [color, setColor] = useState(() => Math.floor(Math.random() * spaceColors.length));
+  // nová činnosť dostane farbu, ktorú ešte žiadna iná nemá
+  const [color, setColor] = useState(() => firstFreeColor(usedColors));
   return (
     <Modal title="Nová činnosť" onClose={onClose} actions={<>
       <button type="button" className="text" onClick={onClose}>Zrušiť</button>

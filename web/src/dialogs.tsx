@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { INVITE_LEN, type Section } from './model';
 import * as Repo from './repo';
 import { ColorPicker, IconButton, Modal } from './ui';
-import { spaceColors } from './format';
+import { firstFreeColor } from './format';
 
 export function JoinDialog({ initialCode, onClose, onJoined }: {
   initialCode: string; onClose: () => void; onJoined: (spaceId: string) => void;
@@ -40,12 +40,12 @@ export function JoinDialog({ initialCode, onClose, onJoined }: {
   );
 }
 
-export function NewSpaceDialog({ onClose, onCreate }: {
-  onClose: () => void; onCreate: (name: string, sections: string[], color: number) => void;
+export function NewSpaceDialog({ onClose, onCreate, usedColors = [] }: {
+  onClose: () => void; onCreate: (name: string, sections: string[], color: number) => void; usedColors?: number[];
 }) {
   const [name, setName] = useState('');
   const [sections, setSections] = useState('');
-  const [color, setColor] = useState(() => Math.floor(Math.random() * spaceColors.length));
+  const [color, setColor] = useState(() => firstFreeColor(usedColors));
   return (
     <Modal title="Nová oblasť" onClose={onClose} actions={<>
       <button type="button" className="text" onClick={onClose}>Zrušiť</button>

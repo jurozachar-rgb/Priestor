@@ -79,7 +79,7 @@ function SignedIn({ user }: { user: User }) {
       </main>
       <Toast toast={toast} onDone={clearToast} />
       {dialog === 'newSpace' && (
-        <NewSpaceDialog onClose={() => setDialog(null)} onCreate={(name, sections, color) => {
+        <NewSpaceDialog onClose={() => setDialog(null)} usedColors={(areas ?? []).map((s) => s.color)} onCreate={(name, sections, color) => {
           setDialog(null);
           navigate(`/s/${Repo.createSpace(name, sections, color)}`);
         }} />

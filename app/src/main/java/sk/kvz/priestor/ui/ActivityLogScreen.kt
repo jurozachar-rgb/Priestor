@@ -253,6 +253,7 @@ fun ActivityLogScreen(initialSelectedId: String?, onBack: () -> Unit, onMembers:
 
     when (dialog) {
         "new" -> NewActivityDialog(
+            usedColors = list.orEmpty().map { it.color },
             onDismiss = { dialog = null },
             onCreate = { name, color ->
                 dialog = null
@@ -668,9 +669,14 @@ private fun EditEntryDialog(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NewActivityDialog(onDismiss: () -> Unit, onCreate: (name: String, color: Int) -> Unit) {
+private fun NewActivityDialog(
+    usedColors: Collection<Int>,
+    onDismiss: () -> Unit,
+    onCreate: (name: String, color: Int) -> Unit,
+) {
     var name by remember { mutableStateOf("") }
-    var color by remember { mutableIntStateOf((0 until spaceColors.size).random()) }
+    // Nová činnosť dostane farbu, ktorú ešte žiadna iná nemá – aby sa v kalendári nepliesli.
+    var color by remember { mutableIntStateOf(firstFreeColor(usedColors)) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nová činnosť") },

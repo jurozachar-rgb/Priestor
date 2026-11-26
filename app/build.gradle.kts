@@ -24,7 +24,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
-        versionName = "0.3.0"
+        versionName = "0.4.0"
     }
 
     signingConfigs {
@@ -86,6 +86,8 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    // presúvanie úloh prstom (drag & drop v zozname)
+    implementation("sh.calvin.reorderable:reorderable:2.4.3")
 
     implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
     implementation("com.google.firebase:firebase-auth")

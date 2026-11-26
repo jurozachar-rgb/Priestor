@@ -21,6 +21,8 @@ const paths = {
   menu: 'M4 18q-.42 0-.71-.29T3 17t.29-.71T4 16h16q.42 0 .71.29T21 17t-.29.71T20 18zm0-5q-.42 0-.71-.29T3 12t.29-.71T4 11h16q.42 0 .71.29T21 12t-.29.71T20 13zm0-5q-.42 0-.71-.29T3 7t.29-.71T4 6h16q.42 0 .71.29T21 7t-.29.71T20 8z',
   share: 'M17 22q-1.25 0-2.12-.87T14 19q0-.15.08-.7l-7.05-4.1q-.4.38-.92.59T5 15q-1.25 0-2.12-.87T2 12t.88-2.12T5 9q.6 0 1.12.21t.93.59l7.05-4.1q-.05-.18-.06-.34T14 5q0-1.25.88-2.12T17 2t2.13.88T20 5t-.87 2.13T17 8q-.6 0-1.12-.21t-.93-.59L7.9 11.3q.05.18.06.34t.04.36-.04.36-.06.34l7.05 4.1q.4-.38.92-.59T17 16q1.25 0 2.13.88T20 19t-.87 2.13T17 22',
   copy: 'M9 18q-.82 0-1.41-.59T7 16V4q0-.82.59-1.41T9 2h9q.82 0 1.41.59T20 4v12q0 .82-.59 1.41T18 18zm-4 4q-.82 0-1.41-.59T3 20V7q0-.42.29-.71T4 6t.71.29T5 7v13h10q.42 0 .71.29T16 21t-.29.71T15 22z',
+  drag: 'M9 20q-.82 0-1.41-.59T7 18t.59-1.41T9 16t1.41.59T11 18t-.59 1.41T9 20m6 0q-.82 0-1.41-.59T13 18t.59-1.41T15 16t1.41.59T17 18t-.59 1.41T15 20m-6-6q-.82 0-1.41-.59T7 12t.59-1.41T9 10t1.41.59T11 12t-.59 1.41T9 14m6 0q-.82 0-1.41-.59T13 12t.59-1.41T15 10t1.41.59T17 12t-.59 1.41T15 14M9 8q-.82 0-1.41-.59T7 6t.59-1.41T9 4t1.41.59T11 6t-.59 1.41T9 8m6 0q-.82 0-1.41-.59T13 6t.59-1.41T15 4t1.41.59T17 6t-.59 1.41T15 8',
+  history: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zm0 2a7 7 0 1 1 0 14a7 7 0 1 1 0-14zm-1 2h2v5.4l3.6 2.1-1 1.7-4.6-2.7z',
   check: 'm9.55 15.15 8.48-8.48q.3-.3.7-.3t.7.3.3.71-.3.71l-9.18 9.2q-.3.3-.7.3t-.7-.3L4.55 13q-.3-.3-.29-.71t.31-.71.71-.3.71.3z',
 } as const;
 
@@ -151,6 +153,27 @@ export function Menu({ items }: { items: { label: string; onClick: () => void; d
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Návrhy pri písaní – čo už v oblasti niekedy bolo (aj v archíve). Kliknutím sa názov doplní.
+ * Hotové (z archívu) majú ikonu hodín, otvorené poznámku „už v zozname“.
+ */
+export function Suggestions({ items, onPick }: {
+  items: { id: string; title: string; done: boolean }[]; onPick: (title: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="suggestions" role="listbox" aria-label="Návrhy">
+      {items.map((t) => (
+        <button key={t.id} type="button" role="option" aria-selected={false} className="chip suggestion"
+          onMouseDown={(e) => e.preventDefault() /* nestratiť fokus z poľa */} onClick={() => onPick(t.title)}>
+          {t.done ? <Icon name="history" size={16} /> : null}
+          {t.title}{!t.done && <span className="muted"> · už v zozname</span>}
+        </button>
+      ))}
     </div>
   );
 }

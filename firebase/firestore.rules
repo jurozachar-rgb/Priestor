@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Pravidlá pre databázu Priestor – verzia 2 (sprísnená).
+// Pravidlá pre databázu Priestor – verzia 3 (ručné poradie úloh – pole order).
 // Princípy:
 //  - oblasť (space) aj jej úlohy vidí a mení iba člen tej oblasti,
 //  - každý zápis má presne určené polia, typy a maximálne dĺžky,
@@ -94,7 +94,7 @@ service cloud.firestore {
 
         function validTask(d) {
           return d.keys().hasOnly(['title', 'note', 'sectionId', 'dueAt', 'hasTime', 'done', 'doneAt',
-                                   'doneByName', 'createdBy', 'createdByName', 'createdAt'])
+                                   'doneByName', 'createdBy', 'createdByName', 'createdAt', 'order'])
             && text(d.title, 500)
             && str(d.note, 5000)
             && optStr(d.sectionId, 64)
@@ -104,7 +104,8 @@ service cloud.firestore {
             && optTime(d.doneAt)
             && optStr(d.doneByName, 100)
             && d.createdBy is string
-            && str(d.createdByName, 100);
+            && str(d.createdByName, 100)
+            && (!('order' in d) || d.order is number);  // ručné poradie (ťahanie prstom)
         }
 
         allow read, delete: if spaceMember();
